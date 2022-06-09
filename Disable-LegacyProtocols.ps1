@@ -4,74 +4,66 @@
 .SYNOPSIS
     A script to change disable legacy SSL/TLS protocols on a Windows Server. They are disable for both client & server.
 .DESCRIPTION
-    This script will disable SSL 2.0, SSL 3.0, TLS 1.0, TLS 1.1 and RC4 cipher.
+    This script will disable SSL 2.0, SSL 3.0, TLS 1.0, TLS 1.1 and RC4 (128, 56, 40) cipher.
 .EXAMPLE
     PS> .\Disable-LegacyProtocols.ps1
 .LINK
     Find the latest version on GitHub: https://github.com/SkylineCommunications/windows-hardening
 #>
 
-# Disable SSL 2.0
-$ssl2 = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0'
-$ssl2Client = "$ssl2\Client"
-$ssl2Server = "$ssl2\Server"
+#region Functions
 
-New-Item $ssl2Server -Force | Out-Null
-New-ItemProperty -path $ssl2Server -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $ssl2Server -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-New-Item $ssl2Client -Force | Out-Null
-New-ItemProperty -path $ssl2Client -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $ssl2Client -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-Write-Host 'SSL 2.0 has been disabled.'
+Function Disable-LegacyProtocol {
+    [CmdletBinding()]
+    PARAM (
+        [Parameter(Mandatory = $true)][string]$Name
+    )
 
-# Disable SSL 3.0
-$ssl3 = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0'
-$ssl3Client = "$ssl3\Client"
-$ssl3Server = "$ssl3\Server"
+    $keyPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$Name"
+    $clientKeyPath = "$keyPath\Client"
+    $serverKeyPath = "$keyPath\Server"
 
-New-Item $ssl3Server -Force | Out-Null
-New-ItemProperty -path $ssl3Server -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $ssl3Server -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-New-Item $ssl3Client -Force | Out-Null
-New-ItemProperty -path $ssl3Client -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $ssl3Client -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-Write-Host 'SSL 3.0 has been disabled.'
+    New-Item $serverKeyPath -Force | Out-Null
+    New-ItemProperty -Path $serverKeyPath -Name 'Enabled' -Value '0' -PropertyType 'DWord' -Force | Out-Null
+    New-ItemProperty -Path $serverKeyPath -Name 'DisabledByDefault' -Value 1 -PropertyType 'DWord' -Force | Out-Null
 
-# Disable TLS 1.0
-$tls10 = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0'
-$tls10Client = "$tls10\Client"
-$tsl10Server = "$tls10\Server"
+    New-Item $clientKeyPath -Force | Out-Null
+    New-ItemProperty -Path $clientKeyPath -Name 'Enabled' -Value '0' -PropertyType 'DWord' -Force | Out-Null
+    New-ItemProperty -Path $clientKeyPath -Name 'DisabledByDefault' -Value 1 -PropertyType 'DWord' -Force | Out-Null
+    Write-Host "Protocol $Name has been disabled."
+}
 
-New-Item $tsl10Server -Force | Out-Null
-New-ItemProperty -path $tsl10Server -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $tsl10Server -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-New-Item $tls10Client -Force | Out-Null
-New-ItemProperty -path $tls10Client -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $tls10Client -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-Write-Host 'TLS 1.0 has been disabled.'
+Function Disable-LegacyCipher {
+    [CmdletBinding()]
+    PARAM (
+        [Parameter(Mandatory = $true)][string]$Name
+    )
 
-# Disable TLS 1.1
-$tls11 = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1'
-$tls11Client = "$tls11\Client"
-$tsl11Server = "$tls11\Server"
+    $basePath = "SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\$Name"
+    $fullPath = "HKLM:\$basePath"
+ 
+    # Workaround because New-Item doesn't support '/' in the Sub Key Name....
+    ([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $env:COMPUTERNAME)).CreateSubKey($basePath) | Out-Null
+    New-ItemProperty -Path $fullPath -Name 'Enabled' -Value '0' -PropertyType 'DWord' -Force | Out-Null
 
-New-Item $tsl11Server -Force | Out-Null
-New-ItemProperty -path $tsl11Server -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $tsl11Server -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-New-Item $tls10Client -Force | Out-Null
-New-ItemProperty -path $tls11Client -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
-New-ItemProperty -path $tls11Client -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
-Write-Host 'TLS 1.1 has been disabled.'
+    Write-Host "Cipher $Name has been disabled."
+}
 
-# Disable RC4
-$rc4 = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4'
+#endregion
 
-([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128')
-New-ItemProperty -path "$rc4 128/128" -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+Write-Host "`nDisabling deprecated SSL/TLS protocols...`n"
 
-([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128')
-New-ItemProperty -path "$rc4 40/128" -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+# Disable legacy protocols
+Disable-LegacyProtocol -Name 'SSL 2.0'
+Disable-LegacyProtocol -Name 'SSL 3.0'
+Disable-LegacyProtocol -Name 'TLS 1.0'
+Disable-LegacyProtocol -Name 'TLS 1.1'
 
-([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128')
-New-ItemProperty -path "$rc4 56/128" -name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null 
-Write-Host 'RC4 has been disabled.'
+Write-Host "`nDisabling deprecated ciphers...`n"
+
+# Disable legacy ciphers
+Disable-LegacyCipher -Name 'RC4 128/128'
+Disable-LegacyCipher -Name 'RC4 56/128'
+Disable-LegacyCipher -Name 'RC4 40/128'
+
+Write-Host "`nScript finished, reboot your machine for changes to take effect." -ForegroundColor Green
