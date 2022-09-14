@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    A script to change disable legacy SSL/TLS protocols on a Windows Server. They are disable for both client & server.
+    A script to change disable legacy SSL/TLS protocols on a Windows Server. They are disabled for both client & server.
 .DESCRIPTION
     This script will disable SSL 2.0, SSL 3.0, TLS 1.0, TLS 1.1 and RC4 (128, 56, 40) cipher.
 .EXAMPLE
